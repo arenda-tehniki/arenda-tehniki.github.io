@@ -47,7 +47,8 @@
     return a > 10 && a < 20 ? many : b === 1 ? one : b > 1 && b < 5 ? few : many
   }
   const hoursText = (n) => `${n} ${plural(n, 'час', 'часа', 'часов')}`
-  const photo = (m) => (m.photo ? m.photo : `${ASSETS}/photos/${m.type}.webp`)
+  const photo = (m) => (m.photo ? m.photo : m.type ? `${ASSETS}/photos/${m.type}.webp` : '')
+  const picture = (m, attrs) => (photo(m) ? `<img src="${esc(photo(m))}" alt="${esc(m.name)}" ${attrs} />` : `<span class="nopic">${I.truck}</span>`)
   const rateText = (m) => (m.rate ? `${m.rateFrom ? 'от ' : ''}${money(m.rate)}` : '')
   const pad = (n) => String(n).padStart(2, '0')
   const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -157,7 +158,7 @@
           ? `<button class="btn wide dark" data-pick="${esc(m.id)}">Техника выбрана ${I.check}</button>`
           : `<button class="btn wide" data-pick="${esc(m.id)}">Выбрать ${I.check}</button>`
     return `<article class="card ${on ? 'on' : ''} ${m.status === 'busy' ? 'busy' : ''}">
-      <div class="pic"><img src="${esc(photo(m))}" alt="${esc(m.name)}" loading="lazy" width="720" height="480" />${on ? `<span class="picked">${I.check} Выбрано</span>` : ''}${FACTS && !m.photo ? '<span class="stock">Фото для примера</span>' : ''}</div>
+      <div class="pic">${picture(m, 'loading="lazy" width="720" height="480"')}${on ? `<span class="picked">${I.check} Выбрано</span>` : ''}${FACTS && !m.photo && m.type ? '<span class="stock">Фото для примера</span>' : ''}</div>
       <div class="body">
         <div class="title"><h3>${esc(m.name)}</h3><span class="badge ${m.status}">${STATUS[m.status]}</span></div>
         ${m.purpose ? `<p class="purpose">${esc(m.purpose)}</p>` : ''}
@@ -417,7 +418,7 @@
       <div class="ogrid">${fleet()
         .map(
           (m) => `<section class="ocard" data-machine="${esc(m.id)}">
-          <div class="ohead"><img src="${esc(photo(m))}" alt="" loading="lazy" /><div><small>Техника</small><b>${esc(m.name)}</b></div></div>
+          <div class="ohead">${photo(m) ? `<img src="${esc(photo(m))}" alt="" loading="lazy" />` : ''}<div><small>Техника</small><b>${esc(m.name)}</b></div></div>
           <div class="obody">
             <div class="pair">
               <label><span class="lbl">Цена за час, ₽</span><input class="field plain" type="number" inputmode="numeric" min="0" step="100" data-set="rate" value="${m.rate || ''}" placeholder="по запросу" /></label>
