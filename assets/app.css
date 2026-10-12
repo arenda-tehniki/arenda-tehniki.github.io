@@ -1144,3 +1144,8 @@ textarea.field {
 .hero .stock {
   z-index: 1;
 }
+
+.bar .btn {
+  flex: none;
+  white-space: nowrap;
+}
