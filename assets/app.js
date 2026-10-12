@@ -74,23 +74,41 @@
   // ---------- куда уходит заявка ----------
 
   /** Мессенджер владельца: Telegram, если указан, иначе WhatsApp; у образца без контактов — окно «поделиться» Telegram. */
-  function channel() {
+  function channels() {
+    const list = []
     const { telegram, whatsapp } = contact()
     const tg = telegram.trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '')
     if (tg) {
       const phone = /^\+?[\d\s()-]{10,}$/.test(tg)
       // Чат открывается сразу в приложении Telegram: сайт t.me отвечает ошибкой, когда в адресе длинный текст заявки.
       const address = phone ? 'phone=' + tg.replace(/\D/g, '') : 'domain=' + encodeURIComponent(tg)
-      return { kind: 'telegram', label: 'Telegram', handle: phone ? '' : '@' + tg, link: (text) => `tg://resolve?${address}&text=${encodeURIComponent(text)}` }
+      list.push({ kind: 'telegram', label: 'Telegram', handle: phone ? '' : '@' + tg, link: (text) => `tg://resolve?${address}&text=${encodeURIComponent(text)}` })
     }
     const wa = whatsapp.replace(/\D/g, '')
-    if (wa) return { kind: 'whatsapp', label: 'WhatsApp', handle: '', link: (text) => `https://wa.me/${wa}?text=${encodeURIComponent(text)}` }
-    return {
+    if (wa) list.push({ kind: 'whatsapp', label: 'WhatsApp', handle: '', link: (text) => `https://wa.me/${wa}?text=${encodeURIComponent(text)}` })
+    if (list.length) return list
+    return [{
       kind: 'share',
       label: 'Telegram',
       handle: '',
       link: (text) => `tg://msg_url?url=${encodeURIComponent(location.origin + location.pathname)}&text=${encodeURIComponent(text)}`,
+    }]
+  }
+  const channel = () => channels()[0]
+
+  /**
+   * Открывает чат. На телефоне и во встроенных браузерах мессенджеров новое окно часто не открывается совсем,
+   * поэтому там переходим в этой же вкладке; на компьютере — в новой, а если её заблокировали, то в этой.
+   */
+  function go(link) {
+    const phone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    if (phone || link.startsWith('tg:')) {
+      location.href = link
+      return
     }
+    const win = window.open(link, '_blank')
+    if (win) win.opener = null
+    else location.href = link
   }
 
   // ---------- заявка клиента ----------
@@ -190,7 +208,11 @@
           : `<div class="total"><span>Стоимость</span><b class="ask">${q.m.rate ? 'Укажите часы' : 'По запросу'}</b></div>
       <p class="fine">${q.m.rate ? 'Введите количество часов — посчитаем аренду.' : 'Цену на эту технику назовёт диспетчер — в заявке уже будут все детали.'}</p>`
       }
-      <button class="btn wide" data-send>${I.send} Отправить заявку в ${ch.label}</button>
+      <button class="btn wide" data-send="0">${I.send} Отправить заявку в ${ch.label}</button>
+      ${channels()
+        .slice(1)
+        .map((other, i) => `<button class="btn wide onDark" data-send="${i + 1}">${I.send} Отправить в ${other.label}</button>`)
+        .join('')}
       <div class="alt"><button data-copy>Скопировать заявку</button>${C.phone ? `<a href="tel:${esc(C.phone.replace(/[^\d+]/g, ''))}">Позвонить</a>` : ''}</div>`
   }
 
@@ -226,7 +248,7 @@
       <a class="brand" href="#top"><span class="tile">${C.logo ? `<img src="${esc(C.logo)}" alt="" />` : I.truck}</span><span><b>${esc(C.name)}</b><small>${esc(C.tagline)}</small></span></a>
       <div class="meta"><span>${I.pin}${esc(C.city)}</span>${C.hours ? `<span><i class="dot"></i>${esc(C.hours)}</span>` : ''}${ch.handle ? `<span>${I.send}${esc(ch.handle)}</span>` : ''}</div>
       <a class="btn small ghost calc" href="#calc">${I.calc} Рассчитать стоимость</a>
-      <a class="btn small" href="${esc(write)}" ${ch.kind === 'share' ? '' : 'target="_blank" rel="noopener"'}>${I.send} <span>Написать</span></a>
+      <a class="btn small" href="${esc(write)}" ${ch.kind === 'share' ? '' : 'data-write'}>${I.send} <span>Написать</span></a>
     </div></header>
 
     <main id="top">
@@ -340,7 +362,7 @@
     setTimeout(() => el.remove(), 2600)
   }
 
-  function send() {
+  function send(index = 0) {
     touched = true
     const bad = problems()
     refresh()
@@ -352,10 +374,7 @@
       toast(bad[first])
       return
     }
-    const link = channel().link(message())
-    // ссылки приложения (tg://) открываются в этой же вкладке, чаты в браузере — в новой
-    if (link.startsWith('tg:')) location.href = link
-    else window.open(link, '_blank', 'noopener')
+    go((channels()[index] || channel()).link(message()))
   }
 
   async function copy() {
@@ -401,8 +420,14 @@
       if (!same || pick.classList.contains('dark')) document.getElementById('calc').scrollIntoView({ behavior: 'smooth' })
       return
     }
-    if (event.target.closest('[data-send]')) return send()
+    const sender = event.target.closest('[data-send]')
+    if (sender) return send(Number(sender.dataset.send) || 0)
     if (event.target.closest('[data-copy]')) return copy()
+    const write = event.target.closest('[data-write]')
+    if (write) {
+      event.preventDefault()
+      go(write.getAttribute('href'))
+    }
   })
 
   // ---------- панель владельца ----------

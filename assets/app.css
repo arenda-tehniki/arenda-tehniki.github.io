@@ -1162,3 +1162,7 @@ textarea.field {
   width: 64px;
   height: 64px;
 }
+
+.sum .btn.onDark {
+  margin-top: 10px;
+}
