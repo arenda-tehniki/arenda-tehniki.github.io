@@ -78,8 +78,9 @@
     const tg = telegram.trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '')
     if (tg) {
       const phone = /^\+?[\d\s()-]{10,}$/.test(tg)
-      const address = phone ? '+' + tg.replace(/\D/g, '') : encodeURIComponent(tg)
-      return { kind: 'telegram', label: 'Telegram', handle: phone ? '' : '@' + tg, link: (text) => `https://t.me/${address}?text=${encodeURIComponent(text)}` }
+      // Чат открывается сразу в приложении Telegram: сайт t.me отвечает ошибкой, когда в адресе длинный текст заявки.
+      const address = phone ? 'phone=' + tg.replace(/\D/g, '') : 'domain=' + encodeURIComponent(tg)
+      return { kind: 'telegram', label: 'Telegram', handle: phone ? '' : '@' + tg, link: (text) => `tg://resolve?${address}&text=${encodeURIComponent(text)}` }
     }
     const wa = whatsapp.replace(/\D/g, '')
     if (wa) return { kind: 'whatsapp', label: 'WhatsApp', handle: '', link: (text) => `https://wa.me/${wa}?text=${encodeURIComponent(text)}` }
@@ -87,7 +88,7 @@
       kind: 'share',
       label: 'Telegram',
       handle: '',
-      link: (text) => `https://t.me/share/url?url=${encodeURIComponent(location.origin + location.pathname)}&text=${encodeURIComponent(text)}`,
+      link: (text) => `tg://msg_url?url=${encodeURIComponent(location.origin + location.pathname)}&text=${encodeURIComponent(text)}`,
     }
   }
 
@@ -350,7 +351,10 @@
       toast(bad[first])
       return
     }
-    window.open(channel().link(message()), '_blank', 'noopener')
+    const link = channel().link(message())
+    // ссылки приложения (tg://) открываются в этой же вкладке, чаты в браузере — в новой
+    if (link.startsWith('tg:')) location.href = link
+    else window.open(link, '_blank', 'noopener')
   }
 
   async function copy() {
